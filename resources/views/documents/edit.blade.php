@@ -3,6 +3,12 @@
 @section('title', 'Edit Dokumen')
 @section('page-title', 'Edit Metadata Dokumen')
 
+@section('breadcrumb')
+    <li class="breadcrumb-item"><a href="{{ route('documents.index') }}">Arsip Dokumen</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('documents.show', $document) }}">{{ Str::limit($document->document_number, 30) }}</a></li>
+    <li class="breadcrumb-item active">Edit</li>
+@endsection
+
 @section('content')
 <div class="gold-line"></div>
 

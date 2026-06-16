@@ -35,6 +35,7 @@ Route::get('/approve/download/{token}/{action}',
 Route::post('/approve/download/{token}/{action}',
     [ApprovalController::class, 'decideDownload'])
     ->name('approval.download.decide')
+    ->middleware('throttle:5,1')
     ->where('action', 'approve|reject');
 
 // Upload approval (Sangat Rahasia)
@@ -46,6 +47,7 @@ Route::get('/approve/upload/{token}/{action}',
 Route::post('/approve/upload/{token}/{action}',
     [ApprovalController::class, 'decideUpload'])
     ->name('approval.upload.decide')
+    ->middleware('throttle:5,1')
     ->where('action', 'approve|reject');
 
 /*
@@ -60,6 +62,7 @@ Route::middleware('auth')->group(function () {
 
     // ── Dokumen ──────────────────────────────────────
     Route::get('/documents/export', [DocumentController::class, 'export'])->name('documents.export');
+    Route::delete('/documents/bulk-delete', [DocumentController::class, 'bulkDelete'])->name('documents.bulk-delete');
     Route::resource('documents', DocumentController::class);
     Route::get('/documents/{document}/upload-approval',
         [DocumentController::class, 'uploadApprovalStatus'])->name('documents.upload-approval');

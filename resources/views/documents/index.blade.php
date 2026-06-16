@@ -138,6 +138,17 @@
             <i class="bi bi-cloud-upload me-1"></i> Upload Dokumen
         </a>
     </div>
+
+    {{-- Bulk action bar --}}
+    <div id="bulk-bar" class="d-none align-items-center gap-2 mt-2 w-100">
+        <span id="bulk-count" class="text-muted" style="font-size:13px;"></span>
+        <button class="btn btn-sm btn-danger" onclick="confirmBulkDelete()">
+            <i class="bi bi-trash me-1"></i> Hapus yang Dipilih
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+            Batal Pilih
+        </button>
+    </div>
 </div>
 
 {{-- ── TABEL DOKUMEN ── --}}
@@ -162,12 +173,26 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th style="width:48px;">#</th>
-                            <th>Nomor Surat</th>
-                            <th>Judul / Perihal</th>
+                            <th style="width:36px;">
+                                <input type="checkbox" id="check-all" class="form-check-input"
+                                       onchange="toggleAll(this)" title="Pilih Semua">
+                            </th>
+                            <th style="width:36px;">#</th>
+                            @php
+                                function sortLink($col, $label, $sort, $dir, $icon = '') {
+                                    $nextDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
+                                    $params  = array_merge(request()->except(['sort','dir','page']), ['sort'=>$col,'dir'=>$nextDir]);
+                                    $arrow   = $sort === $col
+                                        ? ($dir === 'asc' ? '<i class="bi bi-chevron-up ms-1"></i>' : '<i class="bi bi-chevron-down ms-1"></i>')
+                                        : '<i class="bi bi-chevron-expand ms-1 text-muted" style="opacity:.4;"></i>';
+                                    return '<a href="'.route('documents.index', $params).'" class="text-decoration-none sort-th">'.$label.$arrow.'</a>';
+                                }
+                            @endphp
+                            <th>{!! sortLink('document_number', 'Nomor Surat', $sort, $dir) !!}</th>
+                            <th>{!! sortLink('title', 'Judul / Perihal', $sort, $dir) !!}</th>
                             <th>Divisi</th>
-                            <th>Tanggal</th>
-                            <th>Klasifikasi</th>
+                            <th>{!! sortLink('document_date', 'Tanggal', $sort, $dir) !!}</th>
+                            <th>{!! sortLink('classification', 'Klasifikasi', $sort, $dir) !!}</th>
                             <th>Ukuran</th>
                             <th style="width:90px;">Aksi</th>
                         </tr>
@@ -175,6 +200,12 @@
                     <tbody>
                         @foreach($documents as $i => $doc)
                         <tr>
+                            <td>
+                                @if($doc->status !== 'pending_approval')
+                                <input type="checkbox" class="form-check-input doc-check"
+                                       value="{{ $doc->id }}" onchange="updateBulkBar()">
+                                @endif
+                            </td>
                             <td class="text-muted">{{ $documents->firstItem() + $i }}</td>
 
                             <td>
@@ -350,6 +381,10 @@
         margin-bottom: 5px;
         display: block;
     }
+    .sort-th { color: var(--esdm-navy); font-weight: 600; }
+    .sort-th:hover { color: var(--esdm-gold); }
+    tr.selected-row { background: #fffbeb !important; }
+    #bulk-bar { flex-wrap: wrap; }
     .table > :not(caption) > * > * { padding: 12px 14px; }
     .table-responsive { overflow: visible; }
     .badge-sangat-rahasia { background:#fee2e2; color:#7f1d1d; }
@@ -369,6 +404,7 @@
 
 @push('scripts')
 <script>
+    // ── Single delete ──
     let deleteTargetId = null;
 
     function confirmDelete(btn) {
@@ -382,5 +418,48 @@
             document.getElementById('delete-form-' + deleteTargetId).submit();
         }
     });
+
+    // ── Bulk select ──
+    function toggleAll(master) {
+        document.querySelectorAll('.doc-check').forEach(cb => cb.checked = master.checked);
+        updateBulkBar();
+    }
+
+    function updateBulkBar() {
+        const checked = [...document.querySelectorAll('.doc-check:checked')];
+        const bar     = document.getElementById('bulk-bar');
+        document.getElementById('bulk-count').textContent = checked.length + ' dokumen dipilih';
+        bar.classList.toggle('d-none', checked.length === 0);
+        bar.classList.toggle('d-flex', checked.length > 0);
+        document.querySelectorAll('tr').forEach(tr => {
+            const cb = tr.querySelector('.doc-check');
+            if (cb) tr.classList.toggle('selected-row', cb.checked);
+        });
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.doc-check, #check-all').forEach(cb => cb.checked = false);
+        updateBulkBar();
+    }
+
+    function confirmBulkDelete() {
+        const ids = [...document.querySelectorAll('.doc-check:checked')].map(cb => cb.value);
+        if (!ids.length) return;
+        if (!confirm(`Hapus ${ids.length} dokumen yang dipilih? Tindakan ini dapat dikembalikan dari Trash.`)) return;
+
+        fetch('{{ route('documents.bulk-delete') }}', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            },
+            body: JSON.stringify({ ids }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            window.location.reload();
+        })
+        .catch(() => alert('Terjadi kesalahan. Silakan coba lagi.'));
+    }
 </script>
 @endpush

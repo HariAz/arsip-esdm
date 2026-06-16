@@ -62,6 +62,12 @@ class DocumentController extends Controller
             });
         }
 
+        // Sortable columns
+        $sortable = ['document_date', 'document_number', 'title', 'classification'];
+        $sort = in_array($request->input('sort'), $sortable) ? $request->input('sort') : 'document_date';
+        $dir  = $request->input('dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $query->orderBy($sort, $dir);
+
         $documents = $query->paginate(15)->withQueryString();
 
         // Catat log pencarian
@@ -84,7 +90,7 @@ class DocumentController extends Controller
             'rejected'=> Document::where('status', Document::STATUS_REJECTED)->count(),
         ];
 
-        return view('documents.index', compact('documents', 'years', 'status', 'counts'));
+        return view('documents.index', compact('documents', 'years', 'status', 'counts', 'sort', 'dir'));
     }
 
     /**
@@ -367,6 +373,29 @@ class DocumentController extends Controller
 
         return redirect()->route('documents.index')
             ->with('success', "Dokumen \"{$title}\" berhasil dihapus dari arsip.");
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']]);
+
+        $documents = Document::whereIn('id', $request->ids)
+            ->where('status', '!=', Document::STATUS_PENDING_APPROVAL)
+            ->get();
+
+        $count = $documents->count();
+        foreach ($documents as $doc) {
+            $doc->delete();
+        }
+
+        ActivityLog::record(
+            action: ActivityLog::ACTION_DOCUMENT_DELETED,
+            userId: Auth::id(),
+            description: "Bulk delete {$count} dokumen",
+            metadata: ['ids' => $request->ids],
+        );
+
+        return response()->json(['deleted' => $count]);
     }
 
     public function trashed()

@@ -234,11 +234,29 @@
                                 @endif
                             </td>
 
-                            {{-- IP --}}
+                            {{-- IP + User Agent --}}
                             <td>
-                                <span class="font-monospace text-muted" style="font-size:11px;">
-                                    {{ $log->ip_address ?? '—' }}
+                                @if($log->ip_address)
+                                <span class="font-monospace text-muted" style="font-size:11px;"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="left"
+                                      title="{{ $log->user_agent ?? 'User agent tidak tersedia' }}">
+                                    {{ $log->ip_address }}
                                 </span>
+                                @if($log->user_agent)
+                                <button class="btn btn-link p-0 ms-1 ua-btn"
+                                        style="font-size:10px; color:#d4c9a8; vertical-align:middle;"
+                                        onclick="toggleUA({{ $log->id }})">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                                <div id="ua-{{ $log->id }}" class="d-none mt-1"
+                                     style="font-size:10px; color:#9ca3af; word-break:break-all; max-width:200px;">
+                                    {{ $log->user_agent }}
+                                </div>
+                                @endif
+                                @else
+                                <span class="text-muted" style="font-size:11px;">—</span>
+                                @endif
                             </td>
                         </tr>
                         @endforeach
@@ -318,8 +336,16 @@
 @push('scripts')
 <script>
 function toggleMeta(id) {
-    const el = document.getElementById('meta-' + id);
-    el.classList.toggle('d-none');
+    document.getElementById('meta-' + id).classList.toggle('d-none');
 }
+function toggleUA(id) {
+    document.getElementById('ua-' + id).classList.toggle('d-none');
+}
+// Aktifkan Bootstrap tooltips
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        new bootstrap.Tooltip(el, { trigger: 'hover' });
+    });
+});
 </script>
 @endpush

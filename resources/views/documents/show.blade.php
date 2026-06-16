@@ -3,6 +3,11 @@
 @section('title', 'Detail Dokumen')
 @section('page-title', 'Detail Dokumen')
 
+@section('breadcrumb')
+    <li class="breadcrumb-item"><a href="{{ route('documents.index') }}">Arsip Dokumen</a></li>
+    <li class="breadcrumb-item active">{{ Str::limit($document->document_number, 40) }}</li>
+@endsection
+
 @section('content')
 <div class="gold-line"></div>
 

@@ -3,6 +3,11 @@
 @section('title', 'Upload Dokumen')
 @section('page-title', 'Upload Dokumen Baru')
 
+@section('breadcrumb')
+    <li class="breadcrumb-item"><a href="{{ route('documents.index') }}">Arsip Dokumen</a></li>
+    <li class="breadcrumb-item active">Upload Dokumen</li>
+@endsection
+
 @section('content')
 <div class="gold-line"></div>
 

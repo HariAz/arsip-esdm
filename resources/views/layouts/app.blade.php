@@ -299,11 +299,57 @@
             margin-bottom: 24px;
         }
 
-        /* ── RESPONSIVE ── */
+        /* ── BREADCRUMB ── */
+        .breadcrumb-nav {
+            padding: 8px 28px 0;
+        }
+        .breadcrumb {
+            font-size: 12px;
+            margin-bottom: 0;
+            background: transparent;
+            padding: 0;
+        }
+        .breadcrumb-item a {
+            color: var(--esdm-navy);
+            text-decoration: none;
+        }
+        .breadcrumb-item a:hover { text-decoration: underline; }
+        .breadcrumb-item.active { color: var(--esdm-muted); }
+        .breadcrumb-item + .breadcrumb-item::before { color: #d4c9a8; }
+
+        /* ── MOBILE RESPONSIVE ── */
+        #sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.45);
+            z-index: 99;
+        }
+
+        #btn-sidebar-toggle {
+            display: none;
+            background: none;
+            border: 1px solid var(--esdm-border);
+            border-radius: 6px;
+            padding: 5px 9px;
+            color: var(--esdm-navy);
+            cursor: pointer;
+            line-height: 1;
+        }
+
         @media (max-width: 768px) {
-            #sidebar { transform: translateX(-100%); transition: transform .3s; }
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform .25s ease;
+                z-index: 200;
+            }
             #sidebar.open { transform: translateX(0); }
             #main { margin-left: 0; }
+            #btn-sidebar-toggle { display: inline-flex; align-items: center; }
+            .topbar { gap: 12px; }
+            .topbar-title { font-size: 16px; }
+            .topbar-meta { display: none; }
+            .page-content { padding: 16px; }
         }
     </style>
 
@@ -401,16 +447,38 @@
     </div>
 </nav>
 
+{{-- Overlay mobile sidebar --}}
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
 {{-- ═══════════════════════ MAIN ═══════════════════════ --}}
 <div id="main">
     {{-- Topbar --}}
     <div class="topbar">
-        <h2 class="topbar-title">@yield('page-title', 'Arsip Dokumen')</h2>
+        <div class="d-flex align-items-center gap-2">
+            <button id="btn-sidebar-toggle" onclick="toggleSidebar()" title="Menu">
+                <i class="bi bi-list" style="font-size:18px;"></i>
+            </button>
+            <h2 class="topbar-title mb-0">@yield('page-title', 'Arsip Dokumen')</h2>
+        </div>
         <div class="topbar-meta">
             <span><i class="bi bi-calendar3 me-1"></i>{{ now()->translatedFormat('d F Y') }}</span>
             <span><i class="bi bi-shield-lock me-1"></i>Intranet Lokal</span>
         </div>
     </div>
+
+    {{-- Breadcrumb --}}
+    @if (View::hasSection('breadcrumb'))
+    <nav aria-label="breadcrumb" class="breadcrumb-nav">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ route('dashboard') }}">
+                    <i class="bi bi-house-door me-1"></i>Home
+                </a>
+            </li>
+            @yield('breadcrumb')
+        </ol>
+    </nav>
+    @endif
 
     {{-- Flash messages --}}
     <div class="px-4 pt-3">
@@ -449,6 +517,23 @@
 
 {{-- Bootstrap JS --}}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+function toggleSidebar() {
+    const sidebar  = document.getElementById('sidebar');
+    const overlay  = document.getElementById('sidebar-overlay');
+    const isOpen   = sidebar.classList.toggle('open');
+    overlay.style.display = isOpen ? 'block' : 'none';
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').style.display = 'none';
+}
+// Close sidebar on resize to desktop
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) closeSidebar();
+});
+</script>
 
 @stack('scripts')
 </body>

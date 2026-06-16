@@ -3,6 +3,12 @@
 @section('title', 'Status Approval Upload')
 @section('page-title', 'Status Persetujuan Upload Dokumen')
 
+@section('breadcrumb')
+    <li class="breadcrumb-item"><a href="{{ route('documents.index') }}">Arsip Dokumen</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('documents.index', ['status' => 'pending']) }}">Menunggu Approval</a></li>
+    <li class="breadcrumb-item active">Status Approval</li>
+@endsection
+
 @section('content')
 <div class="gold-line"></div>
 
