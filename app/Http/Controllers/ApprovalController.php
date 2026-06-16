@@ -11,6 +11,9 @@ use App\Models\Document;
 use App\Models\ActivityLog;
 use App\Jobs\SendDownloadApprovalMagicLink;
 use App\Jobs\SendUploadApprovalMagicLink;
+use App\Mail\UploadApprovalCompletedMail;
+use App\Mail\DownloadApprovalCompletedMail;
+use Illuminate\Support\Facades\Mail;
 
 class ApprovalController extends Controller
 {
@@ -62,7 +65,7 @@ class ApprovalController extends Controller
     public function decideDownload(Request $request, string $token, string $action)
     {
         $step = DownloadApprovalStep::where('token', $token)
-            ->with(['downloadRequest.document', 'downloadRequest.steps'])
+            ->with(['downloadRequest.document', 'downloadRequest.steps', 'downloadRequest.requester'])
             ->firstOrFail();
 
         // Double-check validasi
@@ -135,6 +138,12 @@ class ApprovalController extends Controller
                     description: "Semua approval selesai, dokumen siap didownload: {$document->title}",
                 );
 
+                // Kirim notifikasi ke arsiparis
+                if ($downloadRequest->requester?->email) {
+                    Mail::to($downloadRequest->requester->email, $downloadRequest->requester->name)
+                        ->send(new DownloadApprovalCompletedMail($downloadRequest, 'approved'));
+                }
+
                 return view('approvals.success', [
                     'type'    => 'download',
                     'action'  => 'approved',
@@ -165,6 +174,13 @@ class ApprovalController extends Controller
                 actorName: $step->approver_name,
                 actorEmail: $step->approver_email,
             );
+
+            // Kirim notifikasi ke arsiparis
+            $downloadRequest->load('steps');
+            if ($downloadRequest->requester?->email) {
+                Mail::to($downloadRequest->requester->email, $downloadRequest->requester->name)
+                    ->send(new DownloadApprovalCompletedMail($downloadRequest, 'rejected'));
+            }
 
             return view('approvals.success', [
                 'type'    => 'download',
@@ -220,7 +236,7 @@ class ApprovalController extends Controller
     public function decideUpload(Request $request, string $token, string $action)
     {
         $step = UploadApprovalStep::where('token', $token)
-            ->with(['uploadApproval.document', 'uploadApproval.steps'])
+            ->with(['uploadApproval.document.division', 'uploadApproval.steps', 'uploadApproval.requester'])
             ->firstOrFail();
 
         if ($step->isUsed() || $step->isExpired() || $step->status !== 'sent') {
@@ -284,6 +300,13 @@ class ApprovalController extends Controller
                     description: "Semua approval upload selesai, dokumen aktif: {$document->title}",
                 );
 
+                // Kirim notifikasi ke arsiparis
+                if ($uploadApproval->requester?->email) {
+                    $uploadApproval->refresh()->load(['document.division', 'steps', 'requester']);
+                    Mail::to($uploadApproval->requester->email, $uploadApproval->requester->name)
+                        ->send(new UploadApprovalCompletedMail($uploadApproval, 'approved'));
+                }
+
                 return view('approvals.success', [
                     'type'    => 'upload',
                     'action'  => 'approved',
@@ -315,6 +338,13 @@ class ApprovalController extends Controller
                 actorName: $step->approver_name,
                 actorEmail: $step->approver_email,
             );
+
+            // Kirim notifikasi ke arsiparis
+            if ($uploadApproval->requester?->email) {
+                $uploadApproval->load('steps');
+                Mail::to($uploadApproval->requester->email, $uploadApproval->requester->name)
+                    ->send(new UploadApprovalCompletedMail($uploadApproval, 'rejected'));
+            }
 
             return view('approvals.success', [
                 'type'    => 'upload',

@@ -129,9 +129,15 @@
             </a>
         </li>
     </ul>
-    <a href="{{ route('documents.create') }}" class="btn btn-gold btn-sm">
-        <i class="bi bi-cloud-upload me-1"></i> Upload Dokumen
-    </a>
+    <div class="d-flex gap-2">
+        <a href="{{ route('documents.export', request()->only(['status','year','classification','search'])) }}"
+           class="btn btn-outline-secondary btn-sm" title="Export CSV dengan filter saat ini">
+            <i class="bi bi-download me-1"></i> Export CSV
+        </a>
+        <a href="{{ route('documents.create') }}" class="btn btn-gold btn-sm">
+            <i class="bi bi-cloud-upload me-1"></i> Upload Dokumen
+        </a>
+    </div>
 </div>
 
 {{-- ── TABEL DOKUMEN ── --}}
@@ -275,9 +281,9 @@
                                         @else
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
-                                                <span class="dropdown-item text-muted disabled">
-                                                    <i class="bi bi-clock me-2"></i>Menunggu Approval
-                                                </span>
+                                                <a class="dropdown-item" href="{{ route('documents.upload-approval', $doc) }}">
+                                                    <i class="bi bi-diagram-3 me-2 text-warning"></i>Lihat Status Approval
+                                                </a>
                                             </li>
                                         @endif
                                     </ul>

@@ -417,6 +417,115 @@ class DocumentController extends Controller
             ->with('success', "Dokumen \"{$title}\" berhasil dihapus permanen.");
     }
 
+    public function uploadApprovalStatus(Document $document)
+    {
+        if ($document->classification !== Document::CLASSIFICATION_SANGAT_RAHASIA) {
+            return redirect()->route('documents.show', $document)
+                ->with('info', 'Hanya dokumen Sangat Rahasia yang memiliki status upload approval.');
+        }
+
+        $document->load(['division', 'uploader', 'uploadApproval.steps', 'uploadApproval.requester']);
+        $uploadApproval = $document->uploadApproval;
+
+        if (!$uploadApproval) {
+            return redirect()->route('documents.index')
+                ->with('warning', 'Data approval tidak ditemukan untuk dokumen ini.');
+        }
+
+        return view('documents.upload-approval-status', compact('document', 'uploadApproval'));
+    }
+
+    public function export(Request $request)
+    {
+        $status = $request->input('status', 'active');
+
+        $query = Document::with(['division', 'uploader'])->orderByDesc('document_date');
+
+        match($status) {
+            'pending'  => $query->where('status', Document::STATUS_PENDING_APPROVAL),
+            'rejected' => $query->where('status', Document::STATUS_REJECTED),
+            default    => $query->active(),
+        };
+
+        if ($request->filled('search')) {
+            $keyword = $request->search;
+            $query->where(function ($q) use ($keyword) {
+                $q->where('title', 'LIKE', "%{$keyword}%")
+                  ->orWhere('document_number', 'LIKE', "%{$keyword}%");
+            });
+        }
+
+        if ($request->filled('year')) {
+            $query->byYear($request->year);
+        }
+
+        if ($request->filled('classification')) {
+            $query->byClassification($request->classification);
+        }
+
+        $documents = $query->get();
+
+        $statusLabel = match($status) {
+            'pending'  => 'menunggu-approval',
+            'rejected' => 'ditolak',
+            default    => 'aktif',
+        };
+
+        $filename = "laporan-arsip-{$statusLabel}-" . date('Ymd-His') . '.csv';
+
+        ActivityLog::record(
+            action: 'document.export',
+            userId: Auth::id(),
+            description: "Export laporan CSV: {$statusLabel} ({$documents->count()} dokumen)",
+            metadata: $request->only(['status', 'year', 'classification', 'search']),
+        );
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control'       => 'no-cache, no-store, must-revalidate',
+        ];
+
+        $callback = function () use ($documents) {
+            $handle = fopen('php://output', 'w');
+            // BOM supaya Excel baca UTF-8 dengan benar
+            fputs($handle, "\xEF\xBB\xBF");
+
+            fputcsv($handle, [
+                'No', 'Nomor Surat', 'Perihal / Judul', 'Tanggal Dokumen',
+                'Divisi', 'Jenis Dokumen', 'Kode Klasifikasi',
+                'Klasifikasi Keamanan', 'Status', 'Ukuran File',
+                'Diupload Oleh', 'Tanggal Upload',
+            ]);
+
+            foreach ($documents as $i => $doc) {
+                fputcsv($handle, [
+                    $i + 1,
+                    $doc->document_number,
+                    $doc->title,
+                    $doc->document_date->format('d/m/Y'),
+                    $doc->division->name ?? '-',
+                    $doc->document_type ?? '-',
+                    $doc->document_classification_code ?? '-',
+                    $doc->classification_label,
+                    match($doc->status) {
+                        Document::STATUS_ACTIVE           => 'Aktif',
+                        Document::STATUS_PENDING_APPROVAL => 'Menunggu Approval',
+                        Document::STATUS_REJECTED         => 'Ditolak',
+                        default => $doc->status,
+                    },
+                    $doc->file_size_formatted,
+                    $doc->uploader->name ?? '-',
+                    $doc->created_at->format('d/m/Y H:i'),
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
     // ══════════════════════════════════════════════
     // PRIVATE HELPERS
     // ══════════════════════════════════════════════

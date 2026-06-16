@@ -59,7 +59,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     // ── Dokumen ──────────────────────────────────────
+    Route::get('/documents/export', [DocumentController::class, 'export'])->name('documents.export');
     Route::resource('documents', DocumentController::class);
+    Route::get('/documents/{document}/upload-approval',
+        [DocumentController::class, 'uploadApprovalStatus'])->name('documents.upload-approval');
     Route::get('/documents/{document}/preview',
         [DocumentController::class, 'preview'])->name('documents.preview');
     Route::get('/documents/{document}/preview/pdf',
