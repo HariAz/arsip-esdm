@@ -36,15 +36,11 @@ class SendUploadApprovalMagicLink implements ShouldQueue
         // Update status step ke 'sent'
         $step->update(['status' => 'sent']);
 
-        // Generate URL magic link
-        $magicUrl = route('approval.upload.show', ['token' => $step->token]);
-
         // Kirim email
-        Mail::send('emails.upload-approval', [
+        Mail::send('emails.upload-approval-magic-link', [
             'step'     => $step,
             'approval' => $approval,
             'document' => $approval->document,
-            'magicUrl' => $magicUrl,
         ], function ($mail) use ($step, $approval) {
             $mail->to($step->approver_email, $step->approver_name)
                  ->subject('[Sistem Arsip ESDM] Permohonan Persetujuan Upload Dokumen — ' . $approval->document->title);
