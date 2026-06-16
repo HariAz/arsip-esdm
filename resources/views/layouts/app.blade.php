@@ -320,12 +320,26 @@
     </div>
 
     <div class="sidebar-nav">
+        @php
+            $pendingDownloads = \App\Models\DownloadRequest::where('status', 'pending')->count();
+            $pendingUploads   = \App\Models\Document::where('status', 'pending_approval')->count();
+        @endphp
+
         <div class="nav-section-label">Menu Utama</div>
 
+        <a href="{{ route('dashboard') }}"
+           class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+            <i class="bi bi-speedometer2"></i>
+            Dashboard
+        </a>
+
         <a href="{{ route('documents.index') }}"
-           class="nav-link {{ request()->routeIs('documents.*') ? 'active' : '' }}">
+           class="nav-link {{ request()->routeIs('documents.*') && !request()->routeIs('documents.create') ? 'active' : '' }}">
             <i class="bi bi-folder2-open"></i>
             Arsip Dokumen
+            @if($pendingUploads > 0)
+                <span class="badge bg-warning text-dark ms-auto" style="font-size:10px;">{{ $pendingUploads }}</span>
+            @endif
         </a>
 
         <a href="{{ route('documents.create') }}"
@@ -334,13 +348,15 @@
             Upload Dokumen
         </a>
 
-        {{-- Akan diaktifkan bertahap --}}
         <div class="nav-section-label">Persetujuan</div>
 
         <a href="{{ route('download-requests.index') }}"
            class="nav-link {{ request()->routeIs('download-requests.*') ? 'active' : '' }}">
             <i class="bi bi-download"></i>
             Permintaan Download
+            @if($pendingDownloads > 0)
+                <span class="badge bg-danger ms-auto" style="font-size:10px;">{{ $pendingDownloads }}</span>
+            @endif
         </a>
 
         <div class="nav-section-label">Sistem</div>
@@ -355,6 +371,12 @@
            class="nav-link {{ request()->routeIs('divisions.*') ? 'active' : '' }}">
             <i class="bi bi-building"></i>
             Manajemen Divisi
+        </a>
+
+        <a href="{{ route('users.index') }}"
+           class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+            <i class="bi bi-people"></i>
+            Manajemen Pengguna
         </a>
     </div>
 

@@ -5,6 +5,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DownloadRequestController;
 use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,7 +55,8 @@ Route::post('/approve/upload/{token}/{action}',
 */
 Route::middleware('auth')->group(function () {
 
-    Route::get('/', fn() => redirect()->route('documents.index'));
+    // ── Dashboard ─────────────────────────────────────────────────
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     // ── Dokumen ──────────────────────────────────────
     Route::resource('documents', DocumentController::class);
@@ -63,6 +66,14 @@ Route::middleware('auth')->group(function () {
         [DocumentController::class, 'previewStream'])->name('documents.preview.stream');
     Route::get('/documents/{document}/download',
         [DocumentController::class, 'download'])->name('documents.download');
+
+    // Trash & restore
+    Route::get('/documents-trash',
+        [DocumentController::class, 'trashed'])->name('documents.trashed');
+    Route::patch('/documents/{id}/restore',
+        [DocumentController::class, 'restore'])->name('documents.restore');
+    Route::delete('/documents/{id}/force-delete',
+        [DocumentController::class, 'forceDelete'])->name('documents.force-delete');
 
     // ── Download Requests ────────────────────────────
     Route::resource('download-requests', DownloadRequestController::class)
@@ -81,6 +92,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('/divisions/{division}/toggle',
         [\App\Http\Controllers\DivisionController::class, 'toggleActive'])
         ->name('divisions.toggle');
+
+    // ── Pengguna ──────────────────────────────────────────────────
+    Route::resource('users', UserController::class)->only(['index', 'create', 'store', 'edit', 'update']);
+    Route::patch('/users/{user}/toggle',
+        [UserController::class, 'toggleActive'])->name('users.toggle');
 
     // ── Activity Log ──────────────────────────────────────────────
     Route::get('/activity-logs',

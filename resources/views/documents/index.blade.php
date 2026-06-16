@@ -94,17 +94,41 @@
     </div>
 </div>
 
-{{-- ── HEADER TABEL ── --}}
-<div class="d-flex align-items-center justify-content-between mb-3">
-    <div>
-        <span class="fw-semibold" style="font-size:14px; color:var(--esdm-navy)">
-            <i class="bi bi-folder2-open me-1"></i>
-            Daftar Dokumen
-        </span>
-        <span class="text-muted ms-2" style="font-size:13px;">
-            — {{ $documents->total() }} dokumen ditemukan
-        </span>
-    </div>
+{{-- ── TABS STATUS ── --}}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <ul class="nav nav-pills gap-1" style="font-size:13px;">
+        <li class="nav-item">
+            <a class="nav-link py-1 px-3 {{ $status === 'active' ? 'active' : '' }}"
+               href="{{ route('documents.index', array_merge(request()->except(['status','page']), ['status'=>'active'])) }}">
+                <i class="bi bi-folder2-open me-1"></i>Aktif
+                <span class="badge ms-1 {{ $status === 'active' ? 'bg-white text-primary' : 'bg-success' }}">{{ $counts['active'] }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link py-1 px-3 {{ $status === 'pending' ? 'active' : '' }}"
+               href="{{ route('documents.index', array_merge(request()->except(['status','page']), ['status'=>'pending'])) }}">
+                <i class="bi bi-hourglass-split me-1"></i>Menunggu Approval
+                @if($counts['pending'] > 0)
+                    <span class="badge ms-1 {{ $status === 'pending' ? 'bg-white text-warning' : 'bg-warning text-dark' }}">{{ $counts['pending'] }}</span>
+                @endif
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link py-1 px-3 {{ $status === 'rejected' ? 'active' : '' }}"
+               href="{{ route('documents.index', array_merge(request()->except(['status','page']), ['status'=>'rejected'])) }}">
+                <i class="bi bi-x-circle me-1"></i>Ditolak
+                @if($counts['rejected'] > 0)
+                    <span class="badge ms-1 {{ $status === 'rejected' ? 'bg-white text-danger' : 'bg-danger' }}">{{ $counts['rejected'] }}</span>
+                @endif
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link py-1 px-3 text-muted"
+               href="{{ route('documents.trashed') }}">
+                <i class="bi bi-trash me-1"></i>Trash
+            </a>
+        </li>
+    </ul>
     <a href="{{ route('documents.create') }}" class="btn btn-gold btn-sm">
         <i class="bi bi-cloud-upload me-1"></i> Upload Dokumen
     </a>

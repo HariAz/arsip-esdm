@@ -22,9 +22,15 @@ class DocumentController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Document::with(['division', 'uploader'])
-            ->active()
-            ->orderByDesc('document_date');
+        $status = $request->input('status', 'active');
+
+        $query = Document::with(['division', 'uploader'])->orderByDesc('document_date');
+
+        match($status) {
+            'pending'  => $query->where('status', Document::STATUS_PENDING_APPROVAL),
+            'rejected' => $query->where('status', Document::STATUS_REJECTED),
+            default    => $query->active(),
+        };
 
         // Filter judul / nomor surat
         if ($request->filled('search')) {
@@ -45,8 +51,8 @@ class DocumentController extends Controller
             $query->byClassification($request->classification);
         }
 
-        // Full-text search (hanya untuk biasa & terbatas)
-        if ($request->filled('fulltext')) {
+        // Full-text search (hanya untuk biasa & terbatas, dan hanya di tab aktif)
+        if ($request->filled('fulltext') && $status === 'active') {
             $keyword = $request->fulltext;
             $query->whereHas('fullText', function ($q) use ($keyword) {
                 $q->whereRaw(
@@ -64,17 +70,21 @@ class DocumentController extends Controller
                 action: ActivityLog::ACTION_DOCUMENT_SEARCH,
                 userId: Auth::id(),
                 description: 'Pencarian dokumen',
-                metadata: $request->only(['search', 'year', 'classification', 'fulltext']),
+                metadata: $request->only(['search', 'year', 'classification', 'fulltext', 'status']),
             );
         }
 
         // Opsi tahun untuk filter dropdown
-        $years = Document::active()
-            ->selectRaw('DISTINCT year')
-            ->orderByDesc('year')
-            ->pluck('year');
+        $years = Document::active()->selectRaw('DISTINCT year')->orderByDesc('year')->pluck('year');
 
-        return view('documents.index', compact('documents', 'years'));
+        // Hitung jumlah per tab
+        $counts = [
+            'active'  => Document::active()->count(),
+            'pending' => Document::where('status', Document::STATUS_PENDING_APPROVAL)->count(),
+            'rejected'=> Document::where('status', Document::STATUS_REJECTED)->count(),
+        ];
+
+        return view('documents.index', compact('documents', 'years', 'status', 'counts'));
     }
 
     /**
@@ -357,6 +367,54 @@ class DocumentController extends Controller
 
         return redirect()->route('documents.index')
             ->with('success', "Dokumen \"{$title}\" berhasil dihapus dari arsip.");
+    }
+
+    public function trashed()
+    {
+        $documents = Document::onlyTrashed()
+            ->with(['division', 'uploader'])
+            ->orderByDesc('deleted_at')
+            ->paginate(15);
+
+        return view('documents.trashed', compact('documents'));
+    }
+
+    public function restore(int $id)
+    {
+        $document = Document::onlyTrashed()->findOrFail($id);
+        $document->restore();
+
+        ActivityLog::record(
+            action: ActivityLog::ACTION_DOCUMENT_UPDATED,
+            userId: Auth::id(),
+            documentId: $document->id,
+            description: "Dokumen dipulihkan dari trash: {$document->title}",
+        );
+
+        return redirect()->route('documents.trashed')
+            ->with('success', "Dokumen \"{$document->title}\" berhasil dipulihkan.");
+    }
+
+    public function forceDelete(int $id)
+    {
+        $document = Document::onlyTrashed()->findOrFail($id);
+        $title = $document->title;
+
+        // Hapus file fisik
+        if (Storage::disk('local')->exists($document->file_path)) {
+            Storage::disk('local')->delete($document->file_path);
+        }
+
+        $document->forceDelete();
+
+        ActivityLog::record(
+            action: ActivityLog::ACTION_DOCUMENT_DELETED,
+            userId: Auth::id(),
+            description: "Dokumen dihapus permanen: {$title}",
+        );
+
+        return redirect()->route('documents.trashed')
+            ->with('success', "Dokumen \"{$title}\" berhasil dihapus permanen.");
     }
 
     // ══════════════════════════════════════════════
