@@ -110,20 +110,14 @@
             {{-- ── BARIS 4: Kode Klasifikasi Dokumen ── --}}
             <div class="mb-3">
                 <label class="form-label required-label">Kode Klasifikasi Dokumen</label>
-                <input
-                    type="text"
-                    name="document_classification_code"
-                    class="form-control font-monospace @error('document_classification_code') is-invalid @enderror"
-                    value="{{ old('document_classification_code') }}"
-                    placeholder="Contoh: 005, TU/01, HK.03..."
-                    style="text-transform:uppercase;"
-                    oninput="this.value = this.value.toUpperCase()"
-                >
+                @include('documents._classification_code_select', [
+                    'selectedCode' => old('document_classification_code', '')
+                ])
                 @error('document_classification_code')
-                    <div class="invalid-feedback">{{ $message }}</div>
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
                 @enderror
                 <small class="text-muted" style="font-size:11px;">
-                    Kode pengelompokan dokumen berdasarkan isi/subjek sesuai standar internal instansi.
+                    Berdasarkan Kepmen ESDM No. 167 K/04/MEM/2020.
                     Berbeda dari klasifikasi keamanan di bawah.
                 </small>
             </div>
