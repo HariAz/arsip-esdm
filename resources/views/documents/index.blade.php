@@ -139,7 +139,7 @@
                             <th>Tanggal</th>
                             <th>Klasifikasi</th>
                             <th>Ukuran</th>
-                            <th style="width:120px;">Aksi</th>
+                            <th style="width:90px;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -192,38 +192,71 @@
                             </td>
 
                             <td>
-                                <div class="d-flex gap-1">
-                                    {{-- Tombol Detail --}}
-                                    <a href="{{ route('documents.show', $doc) }}"
-                                       class="btn btn-sm btn-outline-secondary"
-                                       title="Detail Dokumen">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                            type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width:180px; font-size:13px;">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('documents.show', $doc) }}">
+                                                <i class="bi bi-eye me-2 text-secondary"></i>Detail
+                                            </a>
+                                        </li>
 
-                                    {{-- Tombol Preview (hanya biasa & terbatas) --}}
-                                    @if($doc->isPreviewable())
-                                        <a href="{{ route('documents.preview', $doc) }}"
-                                           class="btn btn-sm btn-outline-primary"
-                                           target="_blank"
-                                           title="Preview PDF">
-                                            <i class="bi bi-filetype-pdf"></i>
-                                        </a>
-                                    @endif
+                                        @if($doc->isPreviewable())
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('documents.preview', $doc) }}">
+                                                <i class="bi bi-filetype-pdf me-2 text-primary"></i>Preview PDF
+                                            </a>
+                                        </li>
+                                        @endif
 
-                                    {{-- Tombol Download --}}
-                                    @if($doc->isFreeDownload())
-                                        <a href="{{ route('documents.download', $doc) }}"
-                                           class="btn btn-sm btn-outline-success"
-                                           title="Download">
-                                            <i class="bi bi-download"></i>
-                                        </a>
-                                    @else
-                                        <a href="{{ route('download-requests.create', ['document_id' => $doc->id]) }}"
-                                           class="btn btn-sm btn-outline-warning"
-                                           title="Ajukan Download">
-                                            <i class="bi bi-send"></i>
-                                        </a>
-                                    @endif
+                                        @if($doc->isFreeDownload())
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('documents.download', $doc) }}">
+                                                <i class="bi bi-download me-2 text-success"></i>Download
+                                            </a>
+                                        </li>
+                                        @else
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('download-requests.create', ['document_id' => $doc->id]) }}">
+                                                <i class="bi bi-send me-2 text-warning"></i>Ajukan Download
+                                            </a>
+                                        </li>
+                                        @endif
+
+                                        @if($doc->status !== 'pending_approval')
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('documents.edit', $doc) }}">
+                                                    <i class="bi bi-pencil me-2 text-info"></i>Edit Metadata
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item text-danger"
+                                                        type="button"
+                                                        data-doc-id="{{ $doc->id }}"
+                                                        data-doc-title="{{ Str::limit($doc->title, 50) }}"
+                                                        onclick="confirmDelete(this)">
+                                                    <i class="bi bi-trash me-2"></i>Hapus
+                                                </button>
+                                            </li>
+                                            <form id="delete-form-{{ $doc->id }}"
+                                                  action="{{ route('documents.destroy', $doc) }}"
+                                                  method="POST" class="d-none">
+                                                @csrf
+                                                @method('DELETE')
+                                            </form>
+                                        @else
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <span class="dropdown-item text-muted disabled">
+                                                    <i class="bi bi-clock me-2"></i>Menunggu Approval
+                                                </span>
+                                            </li>
+                                        @endif
+                                    </ul>
                                 </div>
                             </td>
                         </tr>
@@ -246,6 +279,36 @@
     </div>
 </div>
 
+{{-- ── MODAL KONFIRMASI HAPUS ── --}}
+<div class="modal fade" id="modalHapus" tabindex="-1" aria-labelledby="modalHapusLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title d-flex align-items-center gap-2 text-danger" id="modalHapusLabel">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Konfirmasi Hapus Dokumen
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="mb-1" style="font-size:14px;">Dokumen berikut akan dihapus dari arsip:</p>
+                <div class="alert alert-danger py-2 px-3 mb-0" style="font-size:13px;">
+                    <i class="bi bi-file-earmark-text me-1"></i>
+                    <span id="modal-doc-title" class="fw-semibold"></span>
+                </div>
+                <p class="text-muted mt-2 mb-0" style="font-size:12px;">
+                    Dokumen akan diarsipkan (soft delete) dan tidak akan muncul di daftar. Tindakan ini dapat dikembalikan oleh administrator.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-danger btn-sm" id="btn-confirm-delete">
+                    <i class="bi bi-trash me-1"></i> Ya, Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('styles')
@@ -258,6 +321,7 @@
         display: block;
     }
     .table > :not(caption) > * > * { padding: 12px 14px; }
+    .table-responsive { overflow: visible; }
     .badge-sangat-rahasia { background:#fee2e2; color:#7f1d1d; }
     .badge-rahasia        { background:#fef3c7; color:#92400e; }
     .badge-terbatas       { background:#dbeafe; color:#1e3a8a; }
@@ -271,4 +335,22 @@
         border-color: var(--esdm-navy);
     }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+    let deleteTargetId = null;
+
+    function confirmDelete(btn) {
+        deleteTargetId = btn.dataset.docId;
+        document.getElementById('modal-doc-title').textContent = btn.dataset.docTitle;
+        new bootstrap.Modal(document.getElementById('modalHapus')).show();
+    }
+
+    document.getElementById('btn-confirm-delete').addEventListener('click', function () {
+        if (deleteTargetId) {
+            document.getElementById('delete-form-' + deleteTargetId).submit();
+        }
+    });
+</script>
 @endpush
